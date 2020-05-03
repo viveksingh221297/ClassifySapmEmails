@@ -1,0 +1,114 @@
+from os import walk
+from os.path import join
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+import nltk
+from nltk.stem import PorterStemmer
+from nltk.stem import SnowballStemmer
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+
+from bs4 import BeautifulSoup
+from wordcloud import WordCloud
+from PIL import Image
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import recall_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import f1_score
+
+import numpy as np
+
+
+from sklearn.model_selection import train_test_split
+
+%matplotlib inline
+
+
+
+SPAM_CAT = 1
+HAM_CAT = 0
+VOCAB_SIZE = 2500
+
+
+# Here the path is whrere all the sample emails are present
+
+
+
+def email_body_generator(path):    
+    
+    for root, dirnames, filenames in walk(path):
+        for file_name in filenames:
+            
+            filepath = join(root, file_name)
+            
+            stream = open(filepath, encoding='latin-1')
+
+            is_body = False
+            lines = []
+
+            for line in stream:
+                if is_body:
+                    lines.append(line)
+                elif line == '\n':
+                    is_body = True
+
+            stream.close()
+
+            email_body = '\n'.join(lines)
+            
+            yield file_name, email_body
+
+
+def df_from_directory(path, classification):
+    rows = []
+    row_names = []
+    
+    for file_name, email_body in email_body_generator(path):
+        rows.append({'MESSAGE': email_body, 'CATEGORY': classification})
+        row_names.append(file_name)
+        
+    return pd.DataFrame(rows, index=row_names)
+ 
+ 
+# calling the function to append the spam file in empty dataframe
+spam_emails = df_from_directory(SPAM_1_PATH, 1)
+# appending non-spam emails also
+data  = spam_emails.append(df_from_directory(SPAM_2_PATH, 1))
+
+
+data.sort_index(inplace=True)
+vectorizer=CountVectorizer(stop_words='english')
+all_features=vectorizer.fit_transform(data.MESSAGE)
+
+# Partitioning the data into test and train data for better results
+
+x_train,x_test,y_train,y_test=train_test_split(all_features,data.CATEGORY,test_size=0.3,random_state=88)
+classifier=MultinomialNB()
+classifier.fit(x_train,y_train)
+nr_correct=(y_test==classifier.predict(x_test)).sum() 
+nr_incorrect=y_test.size-nr_correct
+fraction_wrong= nr_incorrect / ( nr_incorrect + nr_correct )
+
+
+
+# Check for real examples
+
+example=['get viagra free now',
+        'could me help with project ',
+        'get property for free',
+        'Reply to arrange a call with specialist']
+
+
+
+# o for non_spam and 1 for spam as declared above
+matrix=vectorizer.transform(example)
+classifier.predict(matrix)
+
+
+
+
+
